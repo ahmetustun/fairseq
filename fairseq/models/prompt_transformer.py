@@ -128,7 +128,7 @@ class PromptEmbeddings(nn.Module):
         return self.prompt_length
 
     def forward(self, bsz):
-        return self.prompts.unsqueeze(0).repeat(bsz,1,1)
+        return self.weight.unsqueeze(0).repeat(bsz,1,1)
 
 
 class PromptTransformerEncoder(TransformerEncoder):
@@ -138,8 +138,7 @@ class PromptTransformerEncoder(TransformerEncoder):
         self.prompts = encoder_prompts
 
     def forward_embedding(
-        self, src_tokens, token_embedding: Optional[torch.Tensor] = None,
-            encoder_prompts: Optional[torch.Tensor] = None):
+        self, src_tokens, token_embedding: Optional[torch.Tensor] = None):
         # embed tokens and positions
         if token_embedding is None:
             token_embedding = self.embed_tokens(src_tokens)
@@ -147,10 +146,10 @@ class PromptTransformerEncoder(TransformerEncoder):
 
         # adding prompts: concat in sequence dim
         bsz = src_tokens.shape[0]
-        embed = torch.cat((self.encoder_prompts(bsz), embed), 1)
+        embed = torch.cat((self.prompts(bsz), embed), 1)
 
         # dummy prompt tokens for positional embeddings
-        dummy_promts = torch.zeros(bsz, self.encoder_prompts.get_prompt_length())
+        dummy_promts = torch.zeros(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
 
         if self.embed_positions is not None:
             x = embed + self.embed_positions(torch.cat((dummy_promts, src_tokens), 1))
@@ -169,8 +168,8 @@ class PromptTransformerEncoder(TransformerEncoder):
         token_embeddings: Optional[torch.Tensor] = None):
         # compute padding mask with dummy prompt tokens for positional embeddings
         bzs = bsz = src_tokens.shape[0]
-        dummy_promts = torch.zeros(bsz, self.encoder_prompts.get_prompt_length())
-        encoder_padding_mask = torch.cat((dummy_promts,src_tokens),1).eq(self.padding_idx)
+        dummy_promts = torch.zeros(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
+        encoder_padding_mask = torch.cat((dummy_promts,src_tokens), 1).eq(self.padding_idx)
         has_pads = src_tokens.device.type == "xla" or encoder_padding_mask.any()
 
         x, encoder_embedding = self.forward_embedding(src_tokens, token_embeddings)
