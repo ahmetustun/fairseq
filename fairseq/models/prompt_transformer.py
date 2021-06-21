@@ -35,9 +35,9 @@ class PromptTransformer(TransformerModel):
         parser.add_argument('--encoder-prompt-length', type=int, metavar='N', default=200,
                             help='encoder prompt embedding length')
         parser.add_argument('--encoder-prompt-init', type=str, metavar='N', default='from-vocab',
-                            help='encoder prompt embedding init method [from-vocab, uniform] ')
-        parser.add_argument('--decoder-prompt-length', type=int, metavar='N', default=None,
-                            help='encoder prompt embedding length')
+                            help='encoder prompt embedding init method [from-vocab, uniform]')
+        parser.add_argument('--decoder-prompt-length', type=int, metavar='N', default=0,
+                            help='decoder prompt embedding length')
         # fmt: on
 
     def __init__(self, args, encoder, decoder):
