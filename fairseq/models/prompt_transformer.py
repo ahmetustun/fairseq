@@ -54,12 +54,12 @@ class PromptTransformer(TransformerModel):
         prompt_transformer(args)
 
         if args.encoder_prompt_length != 0:
-            encoder_prompts = cls.build_prompt(args.encoder_prefix_length, args.encoder_embed_dim)
+            encoder_prompts = cls.build_prompt(args.encoder_prompt_length, args.encoder_embed_dim)
         else:
             encoder_prompts = None
 
         if args.decoder_prompt_length != 0:
-            decoder_prompts = cls.build_prompt(args.encoder_prefix_length, args.encoder_embed_dim)
+            decoder_prompts = cls.build_prompt(args.decoder_prompt_length, args.encoder_embed_dim)
         else:
             decoder_prompts = None
 
@@ -211,28 +211,30 @@ class PromptTransformerEncoder(TransformerEncoder):
 
 @register_model_architecture("prompt_transformer", "prompt_transformer")
 def prompt_transformer(args):
-    args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 200)
-    args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 0)
+    args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
+    args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
     args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     base_architecture(args)
 
 
 @register_model_architecture("prompt_transformer", "prompt_transformer_wmt_en_de_big")
 def prompt_transformer_wmt_en_de_big(args):
-    args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 200)
-    args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 0)
+    args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
+    args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
     transformer_wmt_en_de_big(args)
 
 
 @register_model_architecture("prompt_transformer", "prompt_transformer_iwslt_de_en")
 def prompt_transformer_iwslt_de_en(args):
-    args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 200)
-    args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 0)
+    args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
+    args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
+    args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     transformer_iwslt_de_en(args)
 
 
 @register_model_architecture("prompt_transformer", "prompt_transformer_mbart_large")
 def prompt_transformer_iwslt_de_en(args):
-    args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 200)
-    args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 0)
+    args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
+    args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
+    args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     transformer_mbart_large(args)
