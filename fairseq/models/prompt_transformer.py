@@ -3,11 +3,15 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import logging
+import random
+from typing import Optional
+
+from omegaconf import DictConfig
+from argparse import Namespace
+
 import torch
 from torch import nn
-from torch import Tensor
-from typing import Optional, List, Dict
-
 from fairseq.models import register_model, register_model_architecture
 from fairseq.models.transformer import (
     TransformerModel,
@@ -15,6 +19,7 @@ from fairseq.models.transformer import (
     transformer_wmt_en_de_big,
     TransformerEncoder, TransformerDecoder, transformer_iwslt_de_en, transformer_mbart_large)
 
+logger = logging.getLogger(__name__)
 
 @register_model("prompt_transformer")
 class PromptTransformer(TransformerModel):
@@ -28,14 +33,17 @@ class PromptTransformer(TransformerModel):
         super(PromptTransformer, PromptTransformer).add_args(parser)
         # Prompt tuning
         parser.add_argument('--encoder-prompt-length', type=int, metavar='N', default=200,
-                            help='encoder prefix embedding length')
+                            help='encoder prompt embedding length')
+        parser.add_argument('--encoder-prompt-init', type=str, metavar='N', default='from-vocab',
+                            help='encoder prompt embedding init method [from-vocab, uniform] ')
         parser.add_argument('--decoder-prompt-length', type=int, metavar='N', default=None,
-                            help='encoder prefix embedding length')
+                            help='encoder prompt embedding length')
         # fmt: on
 
     def __init__(self, args, encoder, decoder):
         super().__init__(args, encoder, decoder)
 
+        self.args = args
         for n, p in self.named_parameters():
             if 'prompt' not in n:
                 p.requires_grad = False
@@ -77,6 +85,32 @@ class PromptTransformer(TransformerModel):
         prompts = PromptEmbeddings(prompt_length, embedding_dim)
         return prompts
 
+    def load_state_dict(
+        self,
+        state_dict,
+        strict=True,
+        model_cfg: Optional[DictConfig] = None,
+        args: Optional[Namespace] = None):
+
+        # Do not enforce the key match due to the prompt params
+        strict = False
+
+        # initialization of prompt tokens
+        state = super().load_state_dict(state_dict, strict)
+
+        logger.info(f'missing keys: {state.missing_keys}')
+        logger.info(f'missing keys: {state.unexpected_keys}')
+
+        if self.args.encoder_prompt_init == 'from-vocab':
+            input_embeddings = state_dict['encoder.embed_tokens.weight']
+            sample_tokens_idx = random.sample(range(0, input_embeddings.shape[0]), self.args.encoder_prompt_length)
+            prompt_dict = {'weight': input_embeddings[sample_tokens_idx]}
+            self.encoder.prompts.load_state_dict(prompt_dict, True)
+            logger.info(f'encoder.prompts.weight is initialized from vocabulary')
+        else:
+            logger.info(f'encoder.prompts.weight is uniformly initialized')
+
+        return state
 
 class PromptEmbeddings(nn.Module):
 
@@ -84,11 +118,11 @@ class PromptEmbeddings(nn.Module):
         super(PromptEmbeddings, self).__init__()
         self.prompt_length = prompt_length
         self.embedding_dim = embedding_dim
-        self.prompts = nn.Parameter(torch.zeros(prompt_length, embedding_dim))
+        self.weight = nn.Parameter(torch.zeros(prompt_length, embedding_dim))
         self.init_weights()
 
     def init_weights(self, range=None):
-        self.prompts.data.normal_(mean=0, std=self.embedding_dim ** -0.5)
+        self.weight.data.normal_(mean=0, std=self.embedding_dim ** -0.5)
 
     def get_prompt_length(self):
         return self.prompt_length
@@ -101,7 +135,7 @@ class PromptTransformerEncoder(TransformerEncoder):
     def __init__(self, args, dictionary, embed_tokens, encoder_prompts=None):
         super().__init__(args, dictionary, embed_tokens)
 
-        self.encoder_prompts = encoder_prompts
+        self.prompts = encoder_prompts
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None,
@@ -179,6 +213,7 @@ class PromptTransformerEncoder(TransformerEncoder):
 def prompt_transformer(args):
     args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 200)
     args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 0)
+    args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     base_architecture(args)
 
 
