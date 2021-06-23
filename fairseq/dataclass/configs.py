@@ -558,7 +558,12 @@ class OptimizationConfig(FairseqDataclass):
             "help": "specify global optimizer for syncing models on different GPUs/shards"
         },
     )
-
+    unfreeze_params_regex: Optional[str] = field(
+        default=None, metadata={"help": "regex for parameters to unfreeze"}
+    )
+    freeze_params_regex: Optional[str] = field(
+        default=None, metadata={"help": "regex for parameters to freeze"}
+    )
 
 @dataclass
 class CheckpointConfig(FairseqDataclass):

@@ -198,7 +198,7 @@ class TranslationConfig(FairseqDataclass):
         default=False, metadata={"help": "load the binarized alignments"}
     )
     left_pad_source: bool = field(
-        default=True, metadata={"help": "pad the source on the left"}
+        default=False, metadata={"help": "pad the source on the left"}
     )
     left_pad_target: bool = field(
         default=False, metadata={"help": "pad the target on the left"}
@@ -345,7 +345,7 @@ class TranslationTask(FairseqTask):
             combine=combine,
             dataset_impl=self.cfg.dataset_impl,
             upsample_primary=self.cfg.upsample_primary,
-            left_pad_source=self.cfg.left_pad_source,
+                left_pad_source=self.cfg.left_pad_source,
             left_pad_target=self.cfg.left_pad_target,
             max_source_positions=self.cfg.max_source_positions,
             max_target_positions=self.cfg.max_target_positions,

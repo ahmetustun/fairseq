@@ -5,6 +5,7 @@
 
 import logging
 import os
+import re
 import warnings
 from argparse import Namespace
 from typing import Any, Callable, Dict, List
@@ -323,6 +324,28 @@ class FairseqTask(object):
 
         model = models.build_model(cfg, self)
         model = quantization_utils.quantize_model_scalar(model, cfg)
+
+        if cfg.unfreeze_params_regex is not None:
+            for n,p in model.named_parameters():
+                if re.search(cfg.unfreeze_params_regex, n):
+                    p.requires_grad = True
+
+        if cfg.freeze_params_regex is not None:
+            for n,p in model.named_parameters():
+                if re.search(cfg.freeze_params_regex, n):
+                    p.requires_grad = False
+
+        frozen_params = []
+        unfrozen_params = []
+        for n,p in model.named_parameters():
+            if not p.requires_grad:
+                frozen_params.append(n)
+            else:
+                unfrozen_params.append(n)
+
+        logger.info(f'Unfrozen params: {unfrozen_params}')
+        logger.info(f'Frozen params: {frozen_params}')
+
         return model
 
     def build_criterion(self, cfg: DictConfig):

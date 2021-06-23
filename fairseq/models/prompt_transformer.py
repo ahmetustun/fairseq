@@ -149,7 +149,7 @@ class PromptTransformerEncoder(TransformerEncoder):
         embed = torch.cat((self.prompts(bsz), embed), 1)
 
         # dummy prompt tokens for positional embeddings
-        dummy_promts = torch.zeros(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
+        dummy_promts = torch.rand(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
 
         if self.embed_positions is not None:
             x = embed + self.embed_positions(torch.cat((dummy_promts, src_tokens), 1))
@@ -168,7 +168,7 @@ class PromptTransformerEncoder(TransformerEncoder):
         token_embeddings: Optional[torch.Tensor] = None):
         # compute padding mask with dummy prompt tokens for positional embeddings
         bzs = bsz = src_tokens.shape[0]
-        dummy_promts = torch.zeros(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
+        dummy_promts = torch.rand(bsz, self.prompts.get_prompt_length()).to(src_tokens.device)
         encoder_padding_mask = torch.cat((dummy_promts,src_tokens), 1).eq(self.padding_idx)
         has_pads = src_tokens.device.type == "xla" or encoder_padding_mask.any()
 
@@ -220,6 +220,7 @@ def prompt_transformer(args):
 def prompt_transformer_wmt_en_de_big(args):
     args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
     args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
+    args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     transformer_wmt_en_de_big(args)
 
 
