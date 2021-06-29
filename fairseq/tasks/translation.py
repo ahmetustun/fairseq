@@ -26,6 +26,7 @@ from fairseq.data import (
     indexed_dataset,
 )
 from fairseq.data.indexed_dataset import get_available_dataset_impl
+from fairseq.data.prefix_token_dataset import PrefixTokenDataset
 from fairseq.dataclass import ChoiceEnum, FairseqDataclass
 from fairseq.tasks import FairseqTask, register_task
 
@@ -58,6 +59,8 @@ def load_langpair_dataset(
     shuffle=True,
     pad_to_multiple=1,
     prepend_bos_src=None,
+    src_prefixes=None,
+    tgt_prefixes=None,
 ):
     def split_exists(split, src, tgt, lang, data_path):
         filename = os.path.join(data_path, "{}.{}-{}.{}".format(split, src, tgt, lang))
@@ -144,6 +147,12 @@ def load_langpair_dataset(
             )
         eos = tgt_dict.index("[{}]".format(tgt))
 
+    if src_prefixes is not None:
+        src_dataset = PrefixTokenDataset(src_dataset, src_prefixes)
+    if tgt_prefixes is not None:
+        if tgt_dataset is not None:
+            tgt_dataset = PrefixTokenDataset(tgt_dataset, tgt_prefixes)
+
     align_dataset = None
     if load_alignments:
         align_path = os.path.join(data_path, "{}.align.{}-{}".format(split, src, tgt))
@@ -167,6 +176,7 @@ def load_langpair_dataset(
         num_buckets=num_buckets,
         shuffle=shuffle,
         pad_to_multiple=pad_to_multiple,
+        tgt_prefixes=tgt_prefixes
     )
 
 
@@ -258,9 +268,6 @@ class TranslationConfig(FairseqDataclass):
             "help": "remove BPE before computing BLEU",
             "argparse_const": "@@ ",
         },
-    )
-    eval_bleu_print_samples: bool = field(
-        default=False, metadata={"help": "print sample generations during validation"}
     )
 
 

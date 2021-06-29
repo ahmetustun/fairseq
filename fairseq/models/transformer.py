@@ -740,6 +740,9 @@ class TransformerDecoder(FairseqIncrementalDecoder):
         if self.output_projection is None:
             self.build_output_projection(args, dictionary, embed_tokens)
 
+    def get_output_projection_weight(self):
+        return self.embed_tokens.weight
+
     def build_output_projection(self, args, dictionary, embed_tokens):
         if args.adaptive_softmax_cutoff is not None:
             self.adaptive_softmax = AdaptiveSoftmax(
@@ -753,11 +756,11 @@ class TransformerDecoder(FairseqIncrementalDecoder):
             )
         elif self.share_input_output_embed:
             self.output_projection = nn.Linear(
-                self.embed_tokens.weight.shape[1],
-                self.embed_tokens.weight.shape[0],
+                self.get_output_projection_weight().shape[1],
+                self.get_output_projection_weight().shape[0],
                 bias=False,
             )
-            self.output_projection.weight = self.embed_tokens.weight
+            self.output_projection.weight = self.get_output_projection_weight()
         else:
             self.output_projection = nn.Linear(
                 self.output_embed_dim, len(dictionary), bias=False
@@ -1220,7 +1223,7 @@ def transformer_mbart_large(args):
     )
     args.decoder_input_dim = getattr(args, "decoder_input_dim", args.decoder_embed_dim)
 
-    args.no_scale_embedding = getattr(args, "no_scale_embedding", True)
+    args.no_scale_embedding = getattr(args, "no_scale_embedding", False)
     args.layernorm_embedding = getattr(args, "layernorm_embedding", True)
 
     args.activation_fn = getattr(args, "activation_fn", "gelu")

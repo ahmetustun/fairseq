@@ -325,6 +325,9 @@ class FairseqTask(object):
         model = models.build_model(cfg, self)
         model = quantization_utils.quantize_model_scalar(model, cfg)
 
+        cfg.unfreeze_params_regex = getattr(cfg, "unfreeze_params_regex", None)
+        cfg.freeze_params_regex = getattr(cfg, "freeze_params_regex", None)
+
         if cfg.unfreeze_params_regex is not None:
             for n,p in model.named_parameters():
                 if re.search(cfg.unfreeze_params_regex, n):
