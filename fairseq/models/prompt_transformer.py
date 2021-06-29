@@ -36,6 +36,8 @@ class PromptTransformer(TransformerModel):
                             help='encoder prompt embedding length')
         parser.add_argument('--encoder-prompt-init', type=str, metavar='N', default='from-vocab',
                             help='encoder prompt embedding init method [from-vocab, uniform]')
+        parser.add_argument('--encoder-prefix-tune', action='store_true',
+                            help='Use new prompt at each encoder layer')
         parser.add_argument('--decoder-prompt-length', type=int, metavar='N', default=0,
                             help='decoder prompt embedding length')
         # fmt: on
@@ -45,7 +47,7 @@ class PromptTransformer(TransformerModel):
 
         self.args = args
         for n, p in self.named_parameters():
-            if 'prompt' not in n:
+            if 'prompt' not in n and 'prefix' not in n:
                 p.requires_grad = False
 
     @classmethod
@@ -55,6 +57,11 @@ class PromptTransformer(TransformerModel):
 
         if args.encoder_prompt_length != 0:
             encoder_prompts = cls.build_prompt(args.encoder_prompt_length, args.encoder_embed_dim)
+            if args.encoder_prefix_tune:
+                encoder_prefixes = nn.ModuleList([cls.build_prompt(args.encoder_prompt_length, args.encoder_embed_dim)
+                                    for i in range(args.encoder_layers - 1)])
+            else:
+                encoder_prefixes = None
         else:
             encoder_prompts = None
 
@@ -64,13 +71,14 @@ class PromptTransformer(TransformerModel):
             decoder_prompts = None
 
         cls.encoder_prompts = encoder_prompts
+        cls.encoder_prefixes = encoder_prefixes
         cls.decoder_prompts = decoder_prompts
 
         return super().build_model(args, task)
 
     @classmethod
     def build_encoder(cls, args, src_dict, embed_tokens):
-        return PromptTransformerEncoder(args, src_dict, embed_tokens, cls.encoder_prompts)
+        return PromptTransformerEncoder(args, src_dict, embed_tokens, cls.encoder_prompts, cls.encoder_prefixes)
 
     @classmethod
     def build_decoder(cls, args, tgt_dict, embed_tokens):
@@ -132,10 +140,11 @@ class PromptEmbeddings(nn.Module):
 
 
 class PromptTransformerEncoder(TransformerEncoder):
-    def __init__(self, args, dictionary, embed_tokens, encoder_prompts=None):
+    def __init__(self, args, dictionary, embed_tokens, encoder_prompts=None, encoder_prefixes=None):
         super().__init__(args, dictionary, embed_tokens)
 
         self.prompts = encoder_prompts
+        self.prefixes = encoder_prefixes
 
     def forward_embedding(
         self, src_tokens, token_embedding: Optional[torch.Tensor] = None):
@@ -187,7 +196,11 @@ class PromptTransformerEncoder(TransformerEncoder):
             encoder_states.append(x)
 
         # encoder layers
-        for layer in self.layers:
+        for i, layer in enumerate(self.layers):
+            if i > 0 and self.prefixes:
+                bsz = src_tokens.shape[0]
+                prefix = self.prefixes[i -1](bsz).transpose(0, 1)
+                x[:self.prompts.get_prompt_length(), :, :] = prefix
             x = layer(
                 x, encoder_padding_mask=encoder_padding_mask if has_pads else None
             )
@@ -211,6 +224,7 @@ class PromptTransformerEncoder(TransformerEncoder):
 @register_model_architecture("prompt_transformer", "prompt_transformer")
 def prompt_transformer(args):
     args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
+    args.encoder_prefix_tune= getattr(args, "encoder_prefix_tune", False)
     args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
     args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
     base_architecture(args)
