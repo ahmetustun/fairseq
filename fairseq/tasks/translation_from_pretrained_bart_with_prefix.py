@@ -63,11 +63,11 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
                 d.add_symbol("[{}]".format(l))
             d.add_symbol("<mask>")
 
-            if not args.encoder_prefix_length == 0:
+            if args.encoder_prefix_length != 0:
                 for p in range(args.encoder_prefix_length):
                     d.add_symbol(f"[prefix:enc:{p}]")
 
-            if not args.decoder_prefix_length == 0:
+            if args.decoder_prefix_length != 0:
                 for p in range(args.decoder_prefix_length):
                     d.add_symbol(f"[prefix:dec:{p}]")
 
