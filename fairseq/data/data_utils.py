@@ -376,6 +376,7 @@ def batch_by_size(
 
 
 def post_process(sentence: str, symbol: str):
+    import re
     if symbol == "sentencepiece":
         sentence = sentence.replace(" ", "").replace("\u2581", " ").strip()
     elif symbol == "wordpiece":
@@ -383,7 +384,6 @@ def post_process(sentence: str, symbol: str):
     elif symbol == "letter":
         sentence = sentence.replace(" ", "").replace("|", " ").strip()
     elif symbol == "silence":
-        import re
         sentence = sentence.replace("<SIL>", "")
         sentence = re.sub(' +', ' ', sentence).strip()
     elif symbol == "_EOW":
@@ -392,6 +392,12 @@ def post_process(sentence: str, symbol: str):
         if symbol == "subword_nmt":
             symbol = "@@ "
         sentence = (sentence + " ").replace(symbol, "").rstrip()
+    elif symbol == "sentencepiece-prefix":
+        sentence = sentence.replace(" ", "").replace("\u2581", " ").strip()
+        sentence = re.sub(r"\[prefix:enc:.\]", "", sentence).strip()
+    elif symbol == "wordpiece-prefix":
+        sentence = sentence.replace(" ", "").replace("_", " ").strip()
+        sentence = re.sub(r"\[prefix:enc:.\]", "", sentence).strip()
     elif symbol == "none":
         pass
     elif symbol is not None:

@@ -112,10 +112,14 @@ class PrefixTransformer(TransformerModel):
         state = super().load_state_dict(state_dict, strict)
 
         logger.info(f'missing keys: {state.missing_keys}')
-        logger.info(f'missing keys: {state.unexpected_keys}')
+        logger.info(f'unexpected keys: {state.unexpected_keys}')
+
+        if len(state.missing_keys) == 0 and len(state.unexpected_keys) == 0:
+            return state
 
         token_embeddings = state_dict['encoder.embed_tokens.weight']
         self.encoder.embed_tokens.token_embeddings.load_state_dict({'weight':token_embeddings}, True)
+        logger.info(f'encoder.embed_tokens.token_embeddings.weight is initialized with encoder.embed_tokens.weight')
 
         if self.args.prefix_init == 'from-vocab':
             sample_tokens_idx = random.sample(range(0, token_embeddings.shape[0]), self.encoder.embed_tokens.prefix_embeddings.weight.shape[0])
@@ -274,7 +278,9 @@ class PrefixTransformerDecoder(TransformerDecoder):
         self.prefixes = decoder_prefixes
 
     def get_output_projection_weight(self):
-        return self.embed_tokens.token_embeddings.weight
+        tokens_embs = self.embed_tokens.token_embeddings.weight
+        prefix_embs = self.embed_tokens.prefix_embeddings.weight
+        return nn.Parameter(torch.cat([tokens_embs, prefix_embs[1:,:]], 0))
 
     def extract_features_scriptable(
         self,
@@ -284,6 +290,7 @@ class PrefixTransformerDecoder(TransformerDecoder):
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        incremental_step: int = None,
     ):
         bs, slen = prev_output_tokens.size()
         if alignment_layer is None:
@@ -346,8 +353,12 @@ class PrefixTransformerDecoder(TransformerDecoder):
 
             if idx > 0 and self.prefixes:
                 bsz = prev_output_tokens.shape[0]
-                prefix = self.prefixes[idx -1](bsz).transpose(0, 1)
-                x[:self.prefixes[0].get_prefix_length(), :, :] = prefix
+                prefix = self.prefixes[idx - 1](bsz).transpose(0, 1)
+                if incremental_step is not None:
+                    if incremental_step < self.prefixes[0].get_prefix_length():
+                        x[0, :, :] = prefix[incremental_step, :, :]
+                else:
+                    x[:self.prefixes[0].get_prefix_length(), :, :] = prefix
 
             x, layer_attn, _ = layer(
                 x,

@@ -333,6 +333,7 @@ class SequenceGenerator(nn.Module):
                 encoder_outs,
                 incremental_states,
                 self.temperature,
+                step,
             )
 
             if self.lm_model is not None:
@@ -563,6 +564,7 @@ class SequenceGenerator(nn.Module):
     def _prefix_tokens(
         self, step: int, lprobs, scores, tokens, prefix_tokens, beam_size: int
     ):
+        beam_size = lprobs.shape[0]
         """Handle prefix tokens"""
         prefix_toks = prefix_tokens[:, step].unsqueeze(-1).repeat(1, beam_size).view(-1)
         prefix_lprobs = lprobs.gather(-1, prefix_toks.unsqueeze(-1))
@@ -773,6 +775,7 @@ class EnsembleModel(nn.Module):
         encoder_outs: List[Dict[str, List[Tensor]]],
         incremental_states: List[Dict[str, Dict[str, Optional[Tensor]]]],
         temperature: float = 1.0,
+        incremental_step: int = None,
     ):
         log_probs = []
         avg_attn: Optional[Tensor] = None
@@ -786,6 +789,7 @@ class EnsembleModel(nn.Module):
                     tokens,
                     encoder_out=encoder_out,
                     incremental_state=incremental_states[i],
+                    incremental_step=incremental_step,
                 )
             else:
                 if hasattr(model, "decoder"):

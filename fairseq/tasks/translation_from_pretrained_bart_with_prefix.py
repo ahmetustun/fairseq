@@ -119,7 +119,7 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
 
             return SequenceScorer(
                 self.target_dictionary,
-                eos=self.tgt_dict.index("[{}]".format(self.args.target_lang)),
+                eos=self.tgt_dict.index(f'[{self.args.target_lang}]'),
             )
         else:
             from fairseq.sequence_generator import SequenceGenerator
@@ -137,7 +137,8 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
                 temperature=getattr(args, "temperature", 1.0),
                 match_source_len=getattr(args, "match_source_len", False),
                 no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
-                eos=self.tgt_dict.index("[{}]".format(self.args.target_lang)),
+                symbols_to_strip_from_output=set(self.tgt_prefixes),
+                eos=self.tgt_dict.eos(),
             )
 
     def build_dataset_for_inference(self, src_tokens, src_lengths, constraints=None):
@@ -161,5 +162,9 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
         self, generator, models, sample, prefix_tokens=None, constraints=None
     ):
         sample_tokens = sample['net_input']['src_tokens'][0]
-        prefix_tokens = torch.Tensor(self.tgt_prefixes).to(sample_tokens.dtype).to(sample_tokens.device)
-        return super().inference_step(generator, models, sample, prefix_tokens, constraints)
+        prefix_tokens = self.tgt_prefixes[1:] + [self.tgt_dict.index(f'[{self.args.target_lang}]')]
+        prefix_tokens = torch.Tensor(prefix_tokens).to(sample_tokens.dtype).to(sample_tokens.device).unsqueeze(0)
+        with torch.no_grad():
+            return generator.generate(
+                models, sample, prefix_tokens=prefix_tokens, constraints=constraints,
+                bos_token=self.tgt_dict.index('[prefix:dec:0]'))
