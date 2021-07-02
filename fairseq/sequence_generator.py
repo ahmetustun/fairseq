@@ -564,7 +564,6 @@ class SequenceGenerator(nn.Module):
     def _prefix_tokens(
         self, step: int, lprobs, scores, tokens, prefix_tokens, beam_size: int
     ):
-        beam_size = lprobs.shape[0]
         """Handle prefix tokens"""
         prefix_toks = prefix_tokens[:, step].unsqueeze(-1).repeat(1, beam_size).view(-1)
         prefix_lprobs = lprobs.gather(-1, prefix_toks.unsqueeze(-1))

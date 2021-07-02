@@ -161,9 +161,10 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
     def inference_step(
         self, generator, models, sample, prefix_tokens=None, constraints=None
     ):
-        sample_tokens = sample['net_input']['src_tokens'][0]
+        src_tokens = sample['net_input']['src_tokens']
         prefix_tokens = self.tgt_prefixes[1:] + [self.tgt_dict.index(f'[{self.args.target_lang}]')]
-        prefix_tokens = torch.Tensor(prefix_tokens).to(sample_tokens.dtype).to(sample_tokens.device).unsqueeze(0)
+        prefix_tokens = torch.Tensor(prefix_tokens).to(src_tokens.dtype).to(src_tokens.device)
+        prefix_tokens = prefix_tokens.unsqueeze(0).repeat(src_tokens.shape[0],1)
         with torch.no_grad():
             return generator.generate(
                 models, sample, prefix_tokens=prefix_tokens, constraints=constraints,
