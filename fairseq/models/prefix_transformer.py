@@ -108,7 +108,24 @@ class PrefixTransformer(TransformerModel):
         # Do not enforce the key match due to the prefix params
         strict = False
 
+        token_embeddings = state_dict['encoder.embed_tokens.weight']
+
+        if self.args.prefix_init == 'from-vocab':
+            sample_tokens_idx = random.sample(range(0, token_embeddings.shape[0]),
+                                              self.encoder.embed_tokens.prefix_embeddings.weight.shape[0])
+            prefix_dict = {'weight': token_embeddings[sample_tokens_idx]}
+            self.encoder.embed_tokens.prefix_embeddings.load_state_dict(prefix_dict, True)
+            info = 'encoder.embed_tokens.prefix_embeddings.weight is initialized from vocabulary'
+        else:
+            prefix_dict = {'weight': self.encoder.embed_tokens.prefix_embeddings.weight}
+            info = 'encoder.embed_tokens.prefix_embeddings.weight is uniformly initialized'
+
         # initialization of prefix tokens
+        if 'decoder.output_projection.weight' not in state_dict:
+            state_dict['decoder.embed_tokens.weight'] = torch.cat([token_embeddings,
+                                                                        prefix_dict['weight'][1:, :]], 0)
+            logger.info('decoder.output_projection.weight is updated by adding prefix embeddings')
+
         state = super().load_state_dict(state_dict, strict)
 
         logger.info(f'missing keys: {state.missing_keys}')
@@ -117,17 +134,11 @@ class PrefixTransformer(TransformerModel):
         if len(state.missing_keys) == 0 and len(state.unexpected_keys) == 0:
             return state
 
-        token_embeddings = state_dict['encoder.embed_tokens.weight']
-        self.encoder.embed_tokens.token_embeddings.load_state_dict({'weight':token_embeddings}, True)
+        self.encoder.embed_tokens.token_embeddings.load_state_dict({'weight': token_embeddings}, True)
         logger.info(f'encoder.embed_tokens.token_embeddings.weight is initialized with encoder.embed_tokens.weight')
 
-        if self.args.prefix_init == 'from-vocab':
-            sample_tokens_idx = random.sample(range(0, token_embeddings.shape[0]), self.encoder.embed_tokens.prefix_embeddings.weight.shape[0])
-            prefix_dict = {'weight': token_embeddings[sample_tokens_idx]}
-            self.encoder.embed_tokens.prefix_embeddings.load_state_dict(prefix_dict, True)
-            logger.info(f'encoder.embed_tokens.prefix_embeddings.weight is initialized from vocabulary')
-        else:
-            logger.info(f'encoder.embed_tokens.prefix_embeddings.weight is uniformly initialized')
+        self.encoder.embed_tokens.prefix_embeddings.load_state_dict(prefix_dict, True)
+        logger.info(info)
 
         # Zero-ing the padding idx
         nn.init.constant_(
