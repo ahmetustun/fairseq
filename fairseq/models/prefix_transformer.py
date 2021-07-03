@@ -108,6 +108,9 @@ class PrefixTransformer(TransformerModel):
         # Do not enforce the key match due to the prefix params
         strict = False
 
+        if 'encoder.embed_tokens.prefix_embeddings.weight' in state_dict:
+            return super().load_state_dict(state_dict, strict)
+
         token_embeddings = state_dict['encoder.embed_tokens.weight']
 
         if self.args.prefix_init == 'from-vocab':
@@ -130,9 +133,6 @@ class PrefixTransformer(TransformerModel):
 
         logger.info(f'missing keys: {state.missing_keys}')
         logger.info(f'unexpected keys: {state.unexpected_keys}')
-
-        if len(state.missing_keys) == 0 and len(state.unexpected_keys) == 0:
-            return state
 
         self.encoder.embed_tokens.token_embeddings.load_state_dict({'weight': token_embeddings}, True)
         logger.info(f'encoder.embed_tokens.token_embeddings.weight is initialized with encoder.embed_tokens.weight')
