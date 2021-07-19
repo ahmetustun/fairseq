@@ -36,12 +36,12 @@ class AdapterLayer(nn.Module):
                     nn.init.normal_(tensor, mean=0.0, std=0.02)
 
             # Init up.
-            init_fn(self.up.weight)
-            init_fn(self.up.bias)
+            init_fn(self.up_proj.weight)
+            init_fn(self.up_proj.bias)
 
             # Init down.
-            init_fn(self.down.weight)
-            init_fn(self.down.bias)
+            init_fn(self.down_proj.weight)
+            init_fn(self.down_proj.bias)
 
     def forward(self, x):
         if self.pfeiffer:

@@ -1,4 +1,8 @@
 import logging
+from typing import Optional, Dict, List, Any, Tuple
+
+from omegaconf import DictConfig
+from argparse import Namespace
 
 from fairseq.modules.transformer_layer import TransformerEncoderLayer
 from fairseq.modules.transformer_layer import TransformerDecoderLayer
@@ -97,11 +101,10 @@ class AdapterTransformerModel(TransformerModel):
     """
     Only overriding build_encoder and build_decoder methods.
     """
-    @classmethod
-    def add_args(cls, parser):
-        """Add model-specific arguments to the parser."""
+    @staticmethod
+    def add_args(parser):
         # fmt: off
-        super().add_args(parser)
+        super(AdapterTransformerModel, AdapterTransformerModel).add_args(parser)
         parser.add_argument('--adapter-dim', type=int, default=64)
         parser.add_argument('--pfeiffer', action='store_true')
         parser.add_argument('--encoder-only', action='store_true')
@@ -112,8 +115,7 @@ class AdapterTransformerModel(TransformerModel):
     def __init__(self, args, encoder, decoder):
         super().__init__(args, encoder, decoder)
         for name, parameter in self.named_parameters():
-            #if "decoder.layers.5" not in name:
-            if "adapters" not in name:
+            if "adapter" not in name:
                 parameter.requires_grad = False
 
     @classmethod
@@ -124,11 +126,13 @@ class AdapterTransformerModel(TransformerModel):
     def build_decoder(cls, *args, **kwargs):
         return AdapterTransformerDecoder(*args, **kwargs)
 
-    def load_state_dict(self, state_dict, strict=False, args=None):
-        """
-        Some hacks to load TransformerModel checkpoints into
-        AdapterModel.
-        """
+    def load_state_dict(
+        self,
+        state_dict,
+        strict=True,
+        model_cfg: Optional[DictConfig] = None,
+        args: Optional[Namespace] = None):
+
         self.upgrade_state_dict(state_dict)
 
         status = super().load_state_dict(state_dict, strict=False)
