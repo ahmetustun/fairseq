@@ -685,6 +685,10 @@ class LegacyFairseqTask(FairseqTask):
 
         model = models.build_model(args, self)
         model = quantization_utils.quantize_model_scalar(model, args)
+
+        args.unfreeze_params_regex = getattr(args, "unfreeze_params_regex", None)
+        args.freeze_params_regex = getattr(args, "freeze_params_regex", None)
+
         if args.unfreeze_params_regex is not None:
             for n,p in model.named_parameters():
                 if re.search(args.unfreeze_params_regex, n):

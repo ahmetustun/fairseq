@@ -209,6 +209,8 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
         for s_t in src_tokens:
             s_t = torch.cat([s_t, s_t.new(1).fill_(src_lang_id)])
             s_t = torch.cat([src_prefix_tensor.to(s_t.dtype).to(s_t.device), s_t])
+            #s_t = torch.cat([src_prefix_tensor.to(s_t.dtype).to(s_t.device), s_t])
+            #s_t = torch.cat([s_t, s_t.new(1).fill_(src_lang_id)])
             source_tokens.append(s_t)
         src_data = ListDataset(source_tokens, src_lengths)
         dataset = LanguagePairDataset(src_data, src_lengths, self.source_dictionary)
@@ -270,7 +272,7 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
                     )
                     src_tokens = sample["net_input"]["src_tokens"]
                     bsz = src_tokens.size(0)
-                    prefix_tokens = self.tgt_prefixes[1:] + [tgt_lang_tok]
+                    prefix_tokens = [tgt_lang_tok] + self.tgt_prefixes[1:]
                     prefix_tokens = torch.Tensor(prefix_tokens).to(src_tokens.dtype).to(src_tokens.device)
                     prefix_tokens = prefix_tokens.unsqueeze(0).repeat(src_tokens.shape[0],1)
                 return generator.generate(
