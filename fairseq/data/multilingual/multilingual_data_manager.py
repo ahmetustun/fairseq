@@ -33,6 +33,7 @@ from fairseq.data.multilingual.multilingual_utils import (
     get_lang_tok,
 )
 from fairseq.data.multilingual.sampled_multi_dataset import CollateFormat
+from fairseq.data.prefix_token_dataset import PrefixTokenDataset
 from fairseq.file_io import PathManager
 from fairseq.utils import FileContentsAction, csv_str_list, eval_str_dict
 
@@ -508,6 +509,8 @@ class MultilingualDatasetManager(object):
         prepend_bos=False,
         load_alignments=False,
         truncate_source=False,
+        src_prefixes=None,
+        tgt_prefixes=None,
     ):
 
         src_datasets = []
@@ -568,6 +571,12 @@ class MultilingualDatasetManager(object):
             src_dataset = PrependTokenDataset(src_dataset, src_dict.bos())
             tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
 
+        if src_prefixes is not None:
+            src_dataset = PrefixTokenDataset(src_dataset, src_prefixes)
+        if tgt_prefixes is not None:
+            if tgt_dataset is not None:
+                tgt_dataset = PrefixTokenDataset(tgt_dataset, tgt_prefixes)
+
         align_dataset = None
         if load_alignments:
             align_path = os.path.join(
@@ -603,6 +612,8 @@ class MultilingualDatasetManager(object):
         src_lang_id=None,
         tgt_lang_id=None,
         langpairs_sharing_datasets=None,
+        src_prefixes=None,
+        tgt_prefixes=None,
     ):
         norm_direction = "-".join(sorted([src, tgt]))
         if langpairs_sharing_datasets is not None:
@@ -640,6 +651,8 @@ class MultilingualDatasetManager(object):
                 prepend_bos=prepend_bos,
                 load_alignments=load_alignments,
                 truncate_source=truncate_source,
+                src_prefixes=src_prefixes,
+                tgt_prefixes=tgt_prefixes,
             )
             src_dataset = src_dataset_transform_func(src_dataset)
             tgt_dataset = tgt_dataset_transform_func(tgt_dataset)
@@ -676,6 +689,7 @@ class MultilingualDatasetManager(object):
             align_dataset=align_dataset,
             src_lang_id=src_lang_id,
             tgt_lang_id=tgt_lang_id,
+            tgt_prefixes=tgt_prefixes
         )
 
     def src_dataset_tranform_func(self, src_lang, tgt_lang, dataset, spec=None):
@@ -757,6 +771,8 @@ class MultilingualDatasetManager(object):
         prepend_bos=False,
         langpairs_sharing_datasets=None,
         data_category=None,
+        src_prefixes=None,
+        tgt_prefixes=None,
         **extra_kwargs,
     ):
         dataset_impl = self.args.dataset_impl
@@ -809,6 +825,8 @@ class MultilingualDatasetManager(object):
             if enable_lang_ids and lang_dictionary is not None
             else None,
             langpairs_sharing_datasets=langpairs_sharing_datasets,
+            src_prefixes=src_prefixes,
+            tgt_prefixes=tgt_prefixes,
         )
         # TODO: handle modified lang toks for mined data and dae data
         if self.args.lang_tok_replacing_bos_eos:
@@ -1036,7 +1054,8 @@ class MultilingualDatasetManager(object):
         return sample_ratios
 
     def load_split_datasets(
-        self, split, training, epoch=1, combine=False, shard_epoch=None, **kwargs
+        self, split, training, epoch=1, combine=False, shard_epoch=None,
+        src_prefixes=None, tgt_prefixes=None, **kwargs
     ):
         data_param_list = self.get_split_data_param_list(
             split, epoch, shard_epoch=shard_epoch
@@ -1050,6 +1069,8 @@ class MultilingualDatasetManager(object):
                 self.load_a_dataset(
                     combine=combine,
                     langpairs_sharing_datasets=langpairs_sharing_datasets,
+                    src_prefixes=src_prefixes,
+                    tgt_prefixes=tgt_prefixes,
                     **param,
                 ),
             )
@@ -1071,10 +1092,12 @@ class MultilingualDatasetManager(object):
         return ConcatDataset([d for _, d in datasets])
 
     def load_sampled_multi_epoch_dataset(
-        self, split, training, epoch=0, combine=False, shard_epoch=None, **kwargs
+        self, split, training, epoch=0, combine=False, shard_epoch=None,
+        src_prefixes=None, tgt_prefixes=None, **kwargs
     ):
         datasets, data_param_list = self.load_split_datasets(
-            split, training, epoch, combine, shard_epoch=shard_epoch, **kwargs
+            split, training, epoch, combine, shard_epoch=shard_epoch,
+            src_prefixes=src_prefixes, tgt_prefixes=tgt_prefixes, **kwargs
         )
         if training and split == getattr(self.args, "train_subset", None):
             sample_ratios = self.get_sampling_ratios(data_param_list, datasets, epoch)
@@ -1096,10 +1119,12 @@ class MultilingualDatasetManager(object):
             return self.load_into_concat_dataset(split, datasets, data_param_list)
 
     def load_sampled_multi_dataset(
-        self, split, training, epoch=0, combine=False, shard_epoch=None, **kwargs
+        self, split, training, epoch=0, combine=False, shard_epoch=None,
+        src_prefixes=None, tgt_prefixes=None, **kwargs
     ):
         datasets, data_param_list = self.load_split_datasets(
-            split, training, epoch, combine, shard_epoch=shard_epoch, **kwargs
+            split, training, epoch, combine, shard_epoch=shard_epoch,
+            src_prefixes=src_prefixes, tgt_prefixes=tgt_prefixes, **kwargs
         )
         if training and split == getattr(self.args, "train_subset", None):
             sample_ratios = self.get_sampling_ratios(data_param_list, datasets, epoch)
@@ -1119,13 +1144,16 @@ class MultilingualDatasetManager(object):
             return self.load_into_concat_dataset(split, datasets, data_param_list)
 
     def load_dataset(
-        self, split, training, epoch=0, combine=False, shard_epoch=None, **kwargs
+        self, split, training, epoch=0, combine=False, shard_epoch=None,
+        src_prefixes=None, tgt_prefixes=None, **kwargs
     ):
         if self.args.virtual_epoch_size is None:
             return self.load_sampled_multi_dataset(
-                split, training, epoch, combine, shard_epoch, **kwargs
+                split, training, epoch, combine, shard_epoch,
+                src_prefixes, tgt_prefixes, **kwargs
             )
         else:
             return self.load_sampled_multi_epoch_dataset(
-                split, training, epoch, combine, shard_epoch, **kwargs
+                split, training, epoch, combine, shard_epoch,
+                src_prefixes, tgt_prefixes, **kwargs
             )
