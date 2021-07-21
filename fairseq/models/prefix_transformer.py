@@ -113,17 +113,16 @@ class PrefixTransformer(TransformerModel):
 
         token_embeddings = state_dict['encoder.embed_tokens.weight']
 
+        # initialization of prefix tokens
         if self.args.prefix_init == 'from-vocab':
             sample_tokens_idx = random.sample(range(0, token_embeddings.shape[0]),
                                               self.encoder.embed_tokens.prefix_embeddings.weight.shape[0])
             prefix_dict = {'weight': token_embeddings[sample_tokens_idx]}
-            self.encoder.embed_tokens.prefix_embeddings.load_state_dict(prefix_dict, True)
             info = 'encoder.embed_tokens.prefix_embeddings.weight is initialized from vocabulary'
         else:
             prefix_dict = {'weight': self.encoder.embed_tokens.prefix_embeddings.weight}
             info = 'encoder.embed_tokens.prefix_embeddings.weight is uniformly initialized'
 
-        # initialization of prefix tokens
         if 'decoder.output_projection.weight' not in state_dict:
             state_dict['decoder.embed_tokens.weight'] = torch.cat([token_embeddings,
                                                                         prefix_dict['weight'][1:, :]], 0)

@@ -509,8 +509,6 @@ class MultilingualDatasetManager(object):
         prepend_bos=False,
         load_alignments=False,
         truncate_source=False,
-        src_prefixes=None,
-        tgt_prefixes=None,
     ):
 
         src_datasets = []
@@ -570,12 +568,6 @@ class MultilingualDatasetManager(object):
             assert hasattr(src_dict, "bos_index") and hasattr(tgt_dict, "bos_index")
             src_dataset = PrependTokenDataset(src_dataset, src_dict.bos())
             tgt_dataset = PrependTokenDataset(tgt_dataset, tgt_dict.bos())
-
-        if src_prefixes is not None:
-            src_dataset = PrefixTokenDataset(src_dataset, src_prefixes)
-        if tgt_prefixes is not None:
-            if tgt_dataset is not None:
-                tgt_dataset = PrefixTokenDataset(tgt_dataset, tgt_prefixes)
 
         align_dataset = None
         if load_alignments:
@@ -651,11 +643,16 @@ class MultilingualDatasetManager(object):
                 prepend_bos=prepend_bos,
                 load_alignments=load_alignments,
                 truncate_source=truncate_source,
-                src_prefixes=src_prefixes,
-                tgt_prefixes=tgt_prefixes,
             )
             src_dataset = src_dataset_transform_func(src_dataset)
             tgt_dataset = tgt_dataset_transform_func(tgt_dataset)
+
+            if src_prefixes is not None:
+                src_dataset = PrefixTokenDataset(src_dataset, src_prefixes)
+            if tgt_prefixes is not None:
+                if tgt_dataset is not None:
+                    tgt_dataset = PrefixTokenDataset(tgt_dataset, tgt_prefixes)
+
             if langpairs_sharing_datasets is not None:
                 langpairs_sharing_datasets[
                     (data_path, split, norm_direction, src)

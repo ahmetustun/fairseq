@@ -57,13 +57,20 @@ def collate_tokens(
     def copy_tensor(src, dst):
         assert dst.numel() == src.numel()
         if move_eos_to_beginning:
-            if prefix_len is not None:
-                dst[:prefix_len] = src[:prefix_len]
+            if move_eos_to_beginning:
                 if eos_idx is None:
-                    dst[prefix_len] = src[-1]
+                    # if no eos_idx is specified, then use the last token in src
+                    dst[0] = src[-1]
                 else:
-                    dst[prefix_len] = eos_idx
-                dst[prefix_len+1:] = src[prefix_len:-1]
+                    dst[0] = eos_idx
+                dst[1:] = src[:-1]
+            #if prefix_len is not None:
+            #    dst[:prefix_len] = src[:prefix_len]
+            #    if eos_idx is None:
+            #        dst[prefix_len] = src[-1]
+            #    else:
+            #        dst[prefix_len] = eos_idx
+            #    dst[prefix_len+1:] = src[prefix_len:-1]
             else:
                 if eos_idx is None:
                     # if no eos_idx is specified, then use the last token in src

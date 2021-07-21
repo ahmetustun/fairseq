@@ -199,21 +199,9 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
                 "Constrained decoding with the multilingual_translation task is not supported"
             )
 
-        #src_lang_id = self.source_dictionary.index("[{}]".format(self.args.source_lang))
-        src_langtok_spec, tgt_langtok_spec = self.args.langtoks["main"]
-        src_lang_id = self.data_manager.get_encoder_langtok(
-            self.args.source_lang, self.args.target_lang, src_langtok_spec
-        )
-        src_prefix_tensor = torch.Tensor([self.src_prefixes])
-        source_tokens = []
-        for s_t in src_tokens:
-            s_t = torch.cat([s_t, s_t.new(1).fill_(src_lang_id)])
-            s_t = torch.cat([src_prefix_tensor.to(s_t.dtype).to(s_t.device), s_t])
-            #s_t = torch.cat([src_prefix_tensor.to(s_t.dtype).to(s_t.device), s_t])
-            #s_t = torch.cat([s_t, s_t.new(1).fill_(src_lang_id)])
-            source_tokens.append(s_t)
-        src_data = ListDataset(source_tokens, src_lengths)
+        src_data = ListDataset(src_tokens, src_lengths)
         dataset = LanguagePairDataset(src_data, src_lengths, self.source_dictionary)
+        src_langtok_spec, tgt_langtok_spec = self.args.langtoks["main"]
         if self.args.lang_tok_replacing_bos_eos:
             dataset = self.data_manager.alter_dataset_langtok(
                 dataset,
@@ -231,6 +219,10 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
                 dataset=dataset.src,
                 spec=src_langtok_spec,
             )
+
+        if self.src_prefixes is not None:
+            dataset.src = PrefixTokenDataset(dataset.src, self.src_prefixes)
+
         return dataset
 
     def build_generator(
@@ -271,8 +263,7 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
                         self.args.target_lang, tgt_langtok_spec
                     )
                     src_tokens = sample["net_input"]["src_tokens"]
-                    bsz = src_tokens.size(0)
-                    prefix_tokens = [tgt_lang_tok] + self.tgt_prefixes[1:]
+                    prefix_tokens = self.tgt_prefixes + [tgt_lang_tok]
                     prefix_tokens = torch.Tensor(prefix_tokens).to(src_tokens.dtype).to(src_tokens.device)
                     prefix_tokens = prefix_tokens.unsqueeze(0).repeat(src_tokens.shape[0],1)
                 return generator.generate(
@@ -280,7 +271,7 @@ class TranslationMultiSimpleEpochWithPrefixTask(LegacyFairseqTask):
                     sample,
                     prefix_tokens=prefix_tokens,
                     constraints=constraints,
-                    bos_token=self.dicts[self.args.target_lang].index('[prefix:dec:0]'),
+                    bos_token=self.dicts[self.args.target_lang].eos(),
                 )
             else:
                 return generator.generate(
