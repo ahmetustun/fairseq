@@ -301,7 +301,7 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
                 temperature=getattr(args, "temperature", 1.0),
                 match_source_len=getattr(args, "match_source_len", False),
                 no_repeat_ngram_size=getattr(args, "no_repeat_ngram_size", 0),
-                symbols_to_strip_from_output=set(self.tgt_prefixes),
+                symbols_to_strip_from_output=set(self.tgt_prefixes) if self.tgt_prefixes else None,
                 eos=self.tgt_dict.eos(),
             )
 

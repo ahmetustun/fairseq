@@ -67,7 +67,7 @@ class PrefixTransformer(TransformerModel):
         if args.layer_prefix and args.decoder_prefix_length != 0:
             decoder_prefixes = nn.ModuleList([PrefixLayers(args.decoder_prefix_length, args.decoder_embed_dim,
                                                            args.reparametrize_prefix, args.reparametrize_dim)
-                                              for i in range(args.encoder_layers - 1)])
+                                              for i in range(args.decoder_layers - 1)])
         else:
             decoder_prefixes = None
 
@@ -183,7 +183,7 @@ class EmbeddingsWithPrefixes(nn.Module):
         super(EmbeddingsWithPrefixes, self).__init__()
         self.encoder_prefix_length = encoder_prefix_length
         self.decoder_prefix_length = decoder_prefix_length
-        self.prefix_length = encoder_prefix_length + encoder_prefix_length
+        self.prefix_length = encoder_prefix_length + decoder_prefix_length
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.padding_idx = padding_idx
