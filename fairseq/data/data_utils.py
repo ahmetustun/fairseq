@@ -401,10 +401,10 @@ def post_process(sentence: str, symbol: str):
         sentence = (sentence + " ").replace(symbol, "").rstrip()
     elif symbol == "sentencepiece-prefix":
         sentence = sentence.replace(" ", "").replace("\u2581", " ").strip()
-        sentence = re.sub(r"\[prefix:enc:.\]", "", sentence).strip()
+        sentence = re.sub(r"\[prefix:enc:\d+]", "", sentence).strip()
     elif symbol == "wordpiece-prefix":
         sentence = sentence.replace(" ", "").replace("_", " ").strip()
-        sentence = re.sub(r"\[prefix:enc:.\]", "", sentence).strip()
+        sentence = re.sub(r"\[prefix:enc:\d+]", "", sentence).strip()
     elif symbol == "none":
         pass
     elif symbol is not None:

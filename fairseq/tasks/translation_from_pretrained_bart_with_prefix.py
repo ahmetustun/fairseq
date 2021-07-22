@@ -326,7 +326,10 @@ class TranslationFromPretrainedBARTTaskWithPrefix(TranslationTask):
         self, generator, models, sample, prefix_tokens=None, constraints=None
     ):
         src_tokens = sample['net_input']['src_tokens']
-        prefix_tokens = self.tgt_prefixes + [self.tgt_dict.index(f'[{self.args.target_lang}]')]
+        if self.tgt_prefixes:
+            prefix_tokens = self.tgt_prefixes + [self.tgt_dict.index(f'[{self.args.target_lang}]')]
+        else:
+            prefix_tokens = [self.tgt_dict.index(f'[{self.args.target_lang}]')]
         prefix_tokens = torch.Tensor(prefix_tokens).to(src_tokens.dtype).to(src_tokens.device)
         prefix_tokens = prefix_tokens.unsqueeze(0).repeat(src_tokens.shape[0],1)
         with torch.no_grad():
