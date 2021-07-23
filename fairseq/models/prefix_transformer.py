@@ -434,7 +434,7 @@ def prefix_transformer_iwslt_de_en(args):
 
 
 @register_model_architecture("prefix_transformer", "prefix_transformer_mbart_large")
-def prefix_transformer_iwslt_de_en(args):
+def prefix_transformer_mbart_large(args):
     args.encoder_prefix_length = getattr(args, "encoder_prefix_length", 20)
     args.decoder_prefix_length = getattr(args, "decoder_prefix_length", 20)
     args.prefix_init = getattr(args, "prefix_init", "from-vocab")

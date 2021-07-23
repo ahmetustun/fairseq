@@ -103,6 +103,9 @@ class PromptTransformer(TransformerModel):
         # Do not enforce the key match due to the prompt params
         strict = False
 
+        if 'encoder.prompts.weight' in state_dict:
+            return super().load_state_dict(state_dict, strict)
+
         # initialization of prompt tokens
         state = super().load_state_dict(state_dict, strict)
 
@@ -247,7 +250,7 @@ def prompt_transformer_iwslt_de_en(args):
 
 
 @register_model_architecture("prompt_transformer", "prompt_transformer_mbart_large")
-def prompt_transformer_iwslt_de_en(args):
+def prompt_transformer_mbart_large(args):
     args.encoder_prompt_length = getattr(args, "encoder_prompt_length", 200)
     args.decoder_prompt_length = getattr(args, "decoder_prompt_length", 0)
     args.encoder_prompt_init = getattr(args, "encoder_prompt_init", "from-vocab")
